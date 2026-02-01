@@ -1,40 +1,38 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { MarketplaceTaskCard } from './MarketplaceTaskCard';
-import { Loader2, SearchX } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import MarketplaceTaskCard from "./MarketplaceTaskCard";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  payout: number;
-  deadline?: string | null;
-  category?: string;
-  difficulty?: string;
-  time_required?: string;
-  status: string;
-  poster_id: string;
-  assignee_id?: string | null;
-  application_count?: number;
-  attachment_url?: string | null;
-}
-
-interface TaskGridProps {
-  tasks: Task[];
-  loading?: boolean;
-  emptyMessage?: string;
-  onClearFilters?: () => void;
-  onUpdate?: () => void;
-}
-
-export const TaskGrid = ({
+const TaskGrid: React.FC<TaskGridProps> = ({
   tasks,
   loading = false,
-  emptyMessage = 'No tasks found',
+  emptyMessage = "No tasks found",
   onClearFilters,
   onUpdate,
-}: TaskGridProps) => {
+  onApply, // <-- already exists
+}) => {
+
+  // Keep a local copy of tasks to update UI immediately
+  const [localTasks, setLocalTasks] = React.useState(tasks);
+
+  React.useEffect(() => {
+    setLocalTasks(tasks);
+  }, [tasks]);
+
+  const handleTaskApply = (taskId: string) => {
+    // Update the specific task in localTasks to mark it as applied
+    setLocalTasks(prev =>
+      prev.map(task =>
+        task.id === taskId
+          ? { ...task, assigneeId: 'applied_temp', applicationCount: (task.applicationCount || 0) + 1 }
+          : task
+      )
+    );
+
+    // Also call parent update if needed
+    onUpdate?.();
+    onApply?.(taskId);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -43,56 +41,34 @@ export const TaskGrid = ({
       </div>
     );
   }
+<button
+  onClick={() => onApply(task.id)}
+  className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90"
+>
+  Apply
+</button>
 
-  if (tasks.length === 0) {
+
+  if (localTasks.length === 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-20 gap-4"
-      >
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <SearchX className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <div className="text-center space-y-1">
-          <p className="text-lg font-medium text-foreground">{emptyMessage}</p>
-          <p className="text-sm text-muted-foreground">
-            Try adjusting your search or filters
-          </p>
-        </div>
-        {onClearFilters && (
-          <Button variant="outline" onClick={onClearFilters}>
-            Clear Filters
-          </Button>
-        )}
-      </motion.div>
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p>{emptyMessage}</p>
+      </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-      {tasks.map((task, index) => (
+      {localTasks.map((task, index) => (
         <MarketplaceTaskCard
           key={task.id}
-          id={task.id}
-          title={task.title}
-          description={task.description}
-          payout={task.payout}
-          deadline={task.deadline}
-          category={task.category}
-          difficulty={task.difficulty}
-          timeRequired={task.time_required}
-          status={task.status}
-          posterId={task.poster_id}
-          assigneeId={task.assignee_id}
-          applicationCount={task.application_count}
-          attachmentUrl={task.attachment_url}
+          {...task}
           index={index}
           onUpdate={onUpdate}
+          onApply={handleTaskApply} // <-- pass the handler here
         />
       ))}
     </div>
   );
 };
-
 export default TaskGrid;
